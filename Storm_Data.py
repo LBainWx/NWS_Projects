@@ -2,7 +2,7 @@ from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 import numpy as np
 import pylab as pl
-
+import matplotlib.image as mpimg
 
 f = open("C:\Users\Lamont\Desktop\Misc_WFO_FWD\FWD_torsV2.csv", 'r')
 all_tor = f.readlines()
@@ -52,7 +52,7 @@ for i in range(0, len(wrk1)-1):
 #---------------------County Based Statistics----------------------------------#	
 #Return the Index for a given County for various statistics
 #The County for stats to be computed. 
-co_name = 'Dallas'
+co_name = 'Lamar'
 county_index = [k for k, county_index in enumerate(county_index) if county_index == co_name]
 
 #Print Total Number of TORs by County.
@@ -117,33 +117,65 @@ for i in range(0, len(county_index)):
 			
 for i in range(len(mon_co_name)):
 	total_month.append(int(month.count(mon_co_name[i])))
-#print total_month, sum(total_month)
+print total_month, sum(total_month)
 
-#climo_dur = (max(year)-min(year))
-climo_yr_co = np.arange(62)+1950
+climo_dur = (max(year)-min(year)+1)
+climo_yr_co = np.arange(climo_dur)+min(year)
 total_climo_yr = []
 year_tor_count_co = []
-
-#print len(climo_yr_co)
 #print climo_yr_co
 
+
 for i in range(0,len(county_index)):
-	#print year[county_index[i]]
-	total_climo_yr.append(year[county_index[i]])
-	#for j in range(len(climo_yr_co)):
-	#	if year[county_index[i]]  == j+1: 
-	#		year[county_index[i]] =  climo_yr_co[j]	
-			
-#print total_climo_yr
+#	print year[county_index[i]]
+	total_climo_yr.append(year[county_index[i]])		
 
 for j in range(min(year), max(year)+1):
 	year_tor_count_co.append(total_climo_yr.count(j))
-	#yrly_co_county.append(int(j)
+	#yrly_co_county.append(int(j))
 	
-print year_tor_count_co, sum(year_tor_count_co)
 
 
+#print year_tor_count_co, sum(year_tor_count_co)
 
+#Plot # of TORs in a County By Year
+#print len(year_tor_count_co), len(climo_yr_co)
+#print climo_yr_co
+#plt.bar(climo_yr_co, year_tor_count_co, color='red', align='center')
+#pl.xlim(1949.5,2012.5)
+#pl.ylim(0,75)
+#plt.grid()
+#plt.suptitle('1950-2011 Tornadoes in '+co_name+' County By Year')
+#plt.xlabel('Years')
+#plt.ylabel('Number of Tornadoes')
+#plt.legend(('TOR',), loc='upper right')
+
+#Plot # of TORS in a County By Month
+pl.xlim(0.5,12.5)
+mon_num = [1,2,3,4,5,6,7,8,9,10,11,12]
+img = ("NWS_log.png")
+#print len(mon_num)
+
+
+plt.xticks(mon_num, mon_co_name)
+plt.bar(mon_num, total_month, align='center', label = "Tornadoes", color='red')
+pl.ylim(0,max(total_month)+5)
+#plt.grid()
+plt.suptitle('Number of Tornadoes by Month between 1950-2011 in '+co_name+' County \n NOAA\NWS Fort Worth, Texas')
+plt.xlabel('Months')
+plt.ylabel('Number of Tornadoes')
+plt.legend(('Tornado',), loc='upper right')
+
+#For loop to help plot the text assoc. w/total number of tornadoes
+#by month
+for i in range(len(mon_num)):
+	plt.annotate(str(total_month[i]), xy=(mon_num[i]-0.1,total_month[i]+0.7))
+
+#plt.imshow(img)
+#plt.show()	
+#plt.text(12, 20, 'EXPERIMENTAL', fontsize=50, color='gray', ha='right', va='bottom',
+#alpha=0.5)
+plt.savefig('C:\Users\Lamont\Desktop\Misc_WFO_FWD\Plots\Month\ '+co_name+'.png')
 			
 #print max(year)
 #print min(year)
@@ -191,6 +223,7 @@ print year_tor_count_co, sum(year_tor_count_co)
 #	total_mon_co.append(int(month.count(mon_co[i])))
 	
 
+	
 #Plotting Statistical Information	
 #plt.bar(YC, YTC, color='red', align='center')
 #pl.xlim(1949.5,2012.5)

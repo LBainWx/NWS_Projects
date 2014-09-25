@@ -82,15 +82,18 @@ FZDay  = []	 #Represents 1 32 Degree Day
 FZDate = []      #Represents the 32 Degree Date
 
 for i in range(0, len(tmax)):
-    if tmax[i] > 99.5 and tmax[i] != -999.0: 
+    if tmax[i] >= 99.5 and tmax[i] != -999.0: 
         #print '100 Degree Day Here'
         OHDay.append(tmax[i])
     #else :
         #print 'Not a 100 Degree Day'
+        
+OHIndex = [x for x, y in enumerate(tmax) if y >= 99.5]
 
-for i in range(0, len(OHDay)):
-    OHDate.append(date_sort[tmax.index(OHDay[i])])                
-                                                
+for i in range(0, len(OHIndex)):
+    OHDate.append(date_sort[OHIndex[i]])                
+
+
 
 #Create array for the Number of 32 F Degree Days
 for i in range(0, len(tmin)):
@@ -100,11 +103,11 @@ for i in range(0, len(tmin)):
     #else :
         #print 'Min Temp is above 32 F'        
 
-for i in range(0, len(FZDay)):
-    FZDate.append(date_sort[tmin.index(FZDay[i])])                
+#for i in range(0, len(FZDay)):
+ #   FZDate.append(date_sort[tmin.index(FZDay[i])])                
 
 #Temporary Break
-sys.exit() 
+#sys.exit() 
                                 
                                                                                               
 #Max Temperature Data (really for astethics, but does nothing in this iteration of program)
@@ -123,15 +126,31 @@ header   = ('ID','Date','TMAX','TimeofTMAX', 'TMIN', 'TimeofTMIN')
 temp_dat = zip(stn,date_sort,tmax,time_tmax, tmin, time_tmin)
 
 
-#Output file
+FZ_dat = zip(FZDate, FZDay)
+HT_dat = zip(OHDate, OHDay)
+
+
+#Output file for Max and Min Temperatures
 filename = 'C:\Users\Lamont\Desktop\LB_NWS_Verification\AWOS\Bowie_Obs.txt'
 import csv
-from itertools import izip
 with open(filename, 'wb') as csvfile:
     filewriter = csv.writer(csvfile,delimiter=',', quotechar=' ') #, quoting=csv.QUOTE_MINIMAL) 
     #filewriter.writerow(header)
     for i in range(0, len(date_sort)):
        filewriter.writerow(temp_dat[i])
+
+#Output file for Writing 100 Degree Days and Days below 32 F
+
+print 'Writing file for 100 Degree Days' 
+filename = 'C:\Users\Lamont\Desktop\LB_NWS_Verification\AWOS\Bowie_Heat_Freeze.txt'
+import csv
+with open(filename, 'wb') as csvfile:
+    filewriter = csv.writer(csvfile,delimiter=',', quotechar=' ') #, quoting=csv.QUOTE_MINIMAL) 
+    #filewriter.writerow(header)
+    for i in range(0, len(HT_dat)):
+       filewriter.writerow(HT_dat[i])
+
+
 
 #close program
 sys.exit()

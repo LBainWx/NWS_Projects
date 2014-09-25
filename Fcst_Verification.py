@@ -23,6 +23,7 @@ wrk1        = []
 stn         = []
 date        = []
 time        = []
+temp        = []
 tempf       = []
 date_count  = []
 date_index  = []
@@ -33,7 +34,7 @@ time_tmax   = []
 time_tmin   = []
 
 for i in range(0, len(data)):
-	wrk1.append(str(data[i]).split(","))
+	wrk1.append((data[i]).split(","))
 	
 #Data from IEM has a 5-6 line header block at the top of the file
 #Needed to split date and time since whitespace and not comma seperated >:(
@@ -43,8 +44,15 @@ for i in range(6, len(wrk1)):
 	date.append(((wrk1[i][1]))[  :10].translate(None, '-'))
         date_index.append(((wrk1[i][1]))[  :10].translate(None, '-'))
         time.append(((wrk1[i][1]))[10:  ])
-        tempf.append((wrk1[i][2]).translate(None, "\n :':]:] "))
-          
+        temp.append((wrk1[i][2]).translate(None, "\n :':]:] "))
+        
+for i in range(0, len(temp)):
+    if temp[i] == 'M':
+        temp[i] = -999.0              
+                
+for i in range(0, len(temp)):
+    tempf.append(float(temp[i]))
+    
 
 #Sort observations by date
 #This will return only unique dates
@@ -56,6 +64,8 @@ date_sort = sorted(set(date))
 for i in range(0, len(date_sort)):    
     date_count.append(date.count(date_sort[i]))
     date_pos.append(date.index(date_sort[i]))
+
+#Creates array for TMax and Tmin
     tmax.append(max(tempf[date_pos[i]:(date_count[i]+date_pos[i])])) 
     tmin.append(min(tempf[date_pos[i]:(date_count[i]+date_pos[i])]))     
     
@@ -65,7 +75,38 @@ for i in range(0, len(date_sort)):
     time_tmax.append(a1[b1.index(max(b1))])
     time_tmin.append(a1[b1.index(min(b1))])
 
+#Create array for the Number of 100 F/32 F Degree Days
+OHDay  = []      #Represents 1 One Hundred Degree Day
+OHDate = []	 #Represents the Hundred Degree Date
+FZDay  = []	 #Represents 1 32 Degree Day
+FZDate = []      #Represents the 32 Degree Date
 
+for i in range(0, len(tmax)):
+    if tmax[i] > 99.5 and tmax[i] != -999.0: 
+        #print '100 Degree Day Here'
+        OHDay.append(tmax[i])
+    #else :
+        #print 'Not a 100 Degree Day'
+
+for i in range(0, len(OHDay)):
+    OHDate.append(date_sort[tmax.index(OHDay[i])])                
+                                                
+
+#Create array for the Number of 32 F Degree Days
+for i in range(0, len(tmin)):
+    if tmin[i] <= 32.0 and tmin[i] != -999.0: 
+        #print 'Min Temp below 32 F'
+        FZDay.append(tmin[i])
+    #else :
+        #print 'Min Temp is above 32 F'        
+
+for i in range(0, len(FZDay)):
+    FZDate.append(date_sort[tmin.index(FZDay[i])])                
+
+#Temporary Break
+sys.exit() 
+                                
+                                                                                              
 #Max Temperature Data (really for astethics, but does nothing in this iteration of program)
 tmax_arr = [tmax]
 tmax_arr = np.reshape((tmax),(len(tmax),1))

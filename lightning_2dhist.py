@@ -44,19 +44,16 @@ from datetime import datetime
 from datetime import timedelta
 import datetime
 
+import warnings
+warnings.filterwarnings("ignore") #since some of this stuff is deprecated
+
 #Event date  mmddyyyy
-event_date = '04222020'
+event_date = '08102014'
 
 #where do you want to center this data
-county_name = 'Lamar'
-
-#map center coords
-m_lat = 33.408680
-m_lon = -95.85897
+county_name = 'Denton'
 
 
-#m_lat = 33.408680   #Centered near Roxton on 04222020
-#m_lon = -95.85897  #Centered near Roxton
 
 #Read in and sort filtered lightning data created from slice_lightning.py
 print("Reading in filtered total lightning data for "+str(event_date)+"")
@@ -64,7 +61,7 @@ raw_ltg_df = pd.read_csv('C:/Users/Lamont/FWD/Research/lightning/txt/'+str(event
 
 
 print("Reading in time bin data")
-time_bin = pd.read_csv('C:/Users/Lamont/FWD/Research/lightning/txt/'+str(event_date)+'/time_binv2.csv')
+time_bin = pd.read_csv('C:/Users/Lamont/FWD/Research/lightning/txt/'+str(event_date)+'/timebin2min.csv')
 
 #convert raw_ltg_df.date and time_bin.date_time to python datetime
 raw_ltg_df.date = pd.to_datetime(raw_ltg_df.date, format="%Y-%m-%d %H:%M:%S.%f")
@@ -87,16 +84,29 @@ cwa_mp = (county_mp_df[county_mp_df['CWA'] == cwa_name])
 county_mp = (cwa_mp[cwa_mp['COUNTYNAME'] == county_name])
 t_zone  = (county_mp_df[county_mp_df['TIME_ZONE'] == 'C'])
 
+m_lon = float(county_mp.LON)
+m_lat = float(county_mp.LAT)
+
+
+
+
 
 #print("Combine Lightning Data")
 #ltg_coords = (list(zip(raw_ltg_df.lon, raw_ltg_df.lat)))
 
+#create a list that collects the peak number of gridded flashes
+pk_bin = []
+
+#need to figure out what the time bin size is (intervals are the same)
+delta_t = (time_bin.iloc[1] - time_bin.iloc[0]).iloc[0]
+
+delta_t = delta_t.total_seconds()/60. 
 
 #only interested in lightning data within a certain time frame
 for i in range(0, len(time_bin)):
-#for i in range(0, 2):
+#for i in range(14, 15): #just to make a handful of images
     ltg_start = time_bin.iloc[i][0].to_pydatetime()
-    ltg_end   = ltg_start+pd.Timedelta(minutes=2)
+    ltg_end   = ltg_start+pd.Timedelta(minutes=int(delta_t))
     raw_ltg_df2 = (raw_ltg_df.where(np.logical_and(raw_ltg_df.date >= ltg_start, 
     raw_ltg_df.date < ltg_end))).dropna(how='all')
     
@@ -141,7 +151,7 @@ for i in range(0, len(time_bin)):
     h = g_param      
 
 
-    scale=100
+    scale= 60 #this is probably in km as well, but think of it as a zoom level
 
     minx =-(scale)
     maxx = scale
@@ -155,24 +165,97 @@ for i in range(0, len(time_bin)):
     y_grid = np.arange(miny-h, maxy+h, grid_size)
     xx, yy = np.meshgrid(x_grid, y_grid)
 
+    start_cb = int(0)
+    end_cb = int(21)
+    int_cb = int(2)
+    
+    #plt.plot(xx, yy, marker='.', color='black', markersize= 10, linestyle='none', alpha=0.2)
+    plt.hist2d(x, y, bins=(xx[0]), cmap='plasma', cmin=1, vmin=start_cb, vmax=end_cb, alpha=0.5) #50 vmax for > 2km
+    strikes2.plot(ax=ax, marker='o', color='black', markersize=100)
+    
 
-    plt.plot(xx, yy, marker='.', color='black', markersize= 5, linestyle='none', alpha=0.2)
-    plt.hist2d(x, y, bins=(xx[0]), cmap='plasma', cmin=1, vmin=5, vmax=85., alpha=0.5)
-    strikes2.plot(ax=ax, marker='o', color='red', markersize=9)
-
-    cb = plt.colorbar(orientation="vertical", pad=0.03, shrink=.6)
+    cb = plt.colorbar(orientation="vertical", pad=0.03, shrink=1.0, ticks = list(range(start_cb,end_cb, int_cb)))
     cb.set_label('Gridded Total Lightning Data (Flashes / $\mathregular{km^2}$)  \n \n', rotation=270, labelpad=75, size='65')
     cb.ax.tick_params(labelsize=65, which='major')
     cb.ax.yaxis.set_ticks_position('left')
+    cb.ax.set_yticklabels(list(range(start_cb,end_cb,int_cb)))
     ax.axis('off')
 
-    plt.suptitle('\n \n Gridded Total Lightning Data for '+str(ltg_start.strftime('%m/%d/%Y'))+' | Time : '+str(ltg_start.strftime('%H:%M'))+'Z to '+str(ltg_end.strftime('%H:%M'))+'Z \n Total Lightning Flash: '+(str(len(raw_ltg_df2)))+'', size='65', fontweight='bold', y=1.05)
+    plt.suptitle('\n \n Gridded Total Lightning Data for '+str(ltg_start.strftime('%m/%d/%Y'))+' | '+str(g_param)+' x '+str(g_param)+' km grid \n Time: '+str(ltg_start.strftime('%H:%M'))+' UTC to '+str(ltg_end.strftime('%H:%M'))+' UTC | Total Lightning Flash: '+(str(len(raw_ltg_df2)))+'', size='65', fontweight='bold', y=1.05)
 
     plt.savefig('C:/Users/Lamont/FWD/Research/lightning/plots/'+str(event_date)+'/maps/histogram/'+str(ltg_start.strftime('%m%d%Y'))+'_'+str(ltg_start.strftime('%H%M'))+'Z.jpg', bbox_inches='tight', facecolor=fig.get_facecolor(), pad_inches=.05)
+  
+    #plt.close()
+    #cb.remove()
+    
+    
+   
+    '''
+    print("Creating KDE Plot for time bin "+str(ltg_start.strftime('%H%M'))+"Z to "+str(ltg_end.strftime('%H%M'))+"Z")
+    #Let's play with pcolormesh
+    nbins=300
+    k = kde.gaussian_kde([x, y])
+    zz = k(np.vstack([xx.flatten(), yy.flatten()]))
+    
+    plt.pcolormesh(xx, yy, zz.reshape(xx.shape), cmap=plt.cm.nipy_spectral, alpha=.75,edgecolor='none', vmin=0, vmax=0.010)
+    cb_kde = plt.colorbar(orientation="vertical", pad=0.03, shrink=.6)
+    cb_kde.set_label(label='Gridded Total Lightning Flash Data', rotation='270', labelpad=75, size='65')
+    cb_kde.ax.tick_params(labelsize=60)
+    
+    #cb = plt.colorbar(orientation="vertical", pad=0.03, shrink=1.0)
+    #cb.set_label('Gridded Total Lightning Data (Flashes / $\mathregular{km^2}$)  \n \n', rotation=270, labelpad=75, size='65')
+    #cb.ax.tick_params(labelsize=65, which='major')
+    
+    cb_kde.ax.yaxis.set_ticks_position('left')
+    ax.axis('off')
+    plt.savefig('C:/Users/Lamont/FWD/Research/lightning/plots/'+str(event_date)+'/maps/kde/'+str(ltg_start.strftime('%m%d%Y'))+'_'+str(ltg_start.strftime('%H%M'))+'Z_kde.jpg', bbox_inches='tight', facecolor=fig.get_facecolor(), pad_inches=.05)
+    '''
+    
     ltg_start = []
     ltg_end = []
     raw_ltg_df2 = []
+    m = plt.hist2d(x, y)
+    df = pd.DataFrame(data=m[0], index=None, columns=None).transpose()
+    pk_bin.append((df.max()).max())
+    df = []
+    m = []
 
     plt.close()
+
+#Let's return the peak gridded total lightning flash count (flashes/km^2)
+#and also combine with the associated time_bin
+pk_bin_df = pd.DataFrame(data=pk_bin, columns=["GFlash"])    
+gflash_df = pd.concat([time_bin, pk_bin_df], axis=1) 
+
+#Time rate of change of the gridded flash data
+t_roc_gflash = (gflash_df["GFlash"]).diff().fillna(0)
+
+
+
+#Create a bar plot of the peak gridded flash data
+time_str = gflash_df.date_time.dt.strftime('%H%M').tolist()  
+fig = plt.gcf()   
+plt.clf()
+fig.set_size_inches(20.5, 10.5)
+ax = plt.axes()
+ax.grid()
+
+ax.plot(range(len(gflash_df["GFlash"].values)), gflash_df["GFlash"].values, color='red', label = 'Peak Gridded Total Lightning Flash Counts')
+ax.plot(range(len(t_roc_gflash.values)),t_roc_gflash.values, lw = 3.0, color='blue', label='Rate of Change of Peak gridded Total Lightning Flash Counts') 
+plt.xticks(range(len(time_str)), (time_str), rotation='90', size='7', fontweight='bold')
+
+plt.xlabel('Time (UTC)', size='20', fontweight='bold')
+plt.ylabel('Peak Gridded Total Lightning Flash Counts', size='20',  fontweight='bold')
+plt.autoscale(enable=True, axis='x', tight='yes')
+ax.legend(loc='upper center', ncol=3, prop = {'size': 12})
+
+
+plt.savefig(('C:/Users/Lamont/FWD/Research/lightning/plots/'+str(event_date)+'/charts/pk_gridded_flash.jpg'), format = 'jpg', dpi=400, bbox_inches='tight')    
+
+
+
+#Export the peak gridded flash data
+print("Exporting Peak Gridded Total Lightning Flash Data CSV")
+gflash_df.to_csv('C:/Users/Lamont/FWD/Research/lightning/txt/'+str(event_date)+'/gflash.csv', index=False)
 
 print("End of Program")

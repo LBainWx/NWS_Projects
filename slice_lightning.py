@@ -44,31 +44,32 @@ from datetime import datetime
 from datetime import timedelta
 import datetime
 
+import warnings
+warnings.filterwarnings("ignore") #since some of this stuff is deprecated
+
+
 
 #Event date  mmddyyyy
-event_date = '04292017'
+event_date = '08102014'
 
 #where do you want to center this data
-county_name = 'Van Zandt'
-
-#map center coords
-m_lat = 32.573879
-m_lon = -95.862236
+county_name = 'Denton'
 
 #storm location file used for storm tracking
-storm_loc_file = pd.read_csv('C:/Users/Lamont/FWD/Research/lightning/input/'+str(event_date)+'/vz_tor4_5.csv')
+storm_loc_file = pd.read_csv('C:/Users/Lamont/FWD/Research/lightning/input/'+str(event_date)+'/input.csv')
 
+#combines the date and time assigned to each radar volume in the storm location file
 tmp = pd.concat([storm_loc_file.date, storm_loc_file.time], axis=1)
 tmp_2f = tmp.date +' '+tmp.time
 
 storm_loc_file = storm_loc_file.assign(start_date = tmp_2f)
 
+#datetime conversions
 t_start = (pd.to_datetime(storm_loc_file.start_date, format='%m/%d/%Y %H:%M'))
+
+#stripping 
 time_start =   t_start.iloc[0:-1]
 time_end   =   t_start.iloc[1:]
-
-
-
 
 #Sort lightning data from ENTLN archive file using Pandas
 print("Reading and sorting total lightning data for "+str(event_date)+"")
@@ -78,14 +79,20 @@ raw_ltg_df = pd.read_csv('C:/Users/Lamont/FWD/Research/lightning/input/'+str(eve
 
 
 #rename columns in the file
-raw_ltg_df.rename(columns={'flashType':'ftype', 'latitude':'lat', 'longitude':'lon', 'peakcurrent':'current', 'time':'date'}, inplace=True)
+raw_ltg_df.rename(columns={'type':'ftype', 'latitude':'lat', 'longitude':'lon', 'peakcurrent':'current', 'timestamp':'date'}, inplace=True)
+
+#had to change time to timesamp since ENI keeps changing their headers >:(
+    #type is what is used as of 8/13
+    #timestamp is what is used as of 8/13
+
+
 
 #sensitivity studies if the number of sensors column is available
 #raw_ltg_df =  raw_ltg_df[raw_ltg_df.numbersensors >=6] #not all files will have this
 
-del raw_ltg_df['icheight']
-del raw_ltg_df['numbersensors']
-del raw_ltg_df['multiplicity']
+#del raw_ltg_df['icheight']
+#del raw_ltg_df['numbersensors']
+#del raw_ltg_df['multiplicity']
 
 #Split things into IC Flash and CG Flash
 print("Splitting Lightning Data into CG and IC Flashes")
@@ -97,6 +104,8 @@ icstrokes = raw_ltg_df[raw_ltg_df.ftype == 1]
 raw_ltg_df.date = (raw_ltg_df.date.str.lstrip()).str.replace(" ","")
 cgstrokes.date = (cgstrokes.date.str.lstrip()).str.replace(" ","")
 icstrokes.date = (icstrokes.date.str.lstrip()).str.replace(" ","")
+
+
 
 
 #Convert data to datetime
@@ -128,6 +137,9 @@ cwa_name = 'FWD'
 cwa_mp = (county_mp_df[county_mp_df['CWA'] == cwa_name])
 county_mp = (cwa_mp[cwa_mp['COUNTYNAME'] == county_name])
 t_zone  = (county_mp_df[county_mp_df['TIME_ZONE'] == 'C'])
+
+m_lon = float(county_mp.LON)
+m_lat = float(county_mp.LAT)
 
 #Plot lightning data
 print("Combine Lightning Data")
@@ -198,6 +210,14 @@ plt.savefig('C:/Users/Lamont/FWD/Research/lightning/plots/'+str(event_date)+'/ma
 #Let's only count the lightning data that is within the range rings 
 #based off of storm positions...we will refer to this as filter_data
 
+
+
+filter_ltg.drop_duplicates(subset=['ftype', 'date', 'lat', 'lon', 'current'], keep='last', inplace=True)
+filter_ltg.sort_values(by='date', inplace=True)
+
+
+
+
 filter_cgstrokes = filter_ltg[filter_ltg.ftype != 1]
 filter_icstrokes = filter_ltg[filter_ltg.ftype == 1]
 
@@ -219,8 +239,9 @@ ic_bin   = filter_icstrokes_v2.resample(str(delta_t)).count()
 #Calculate some moving means from the binned data
 tltg_df = pd.DataFrame(tltg_bin.values, columns=['Count'])
 
-mm_num = int(delta_t.strip('min'))*3
-tltg_df_mm = tltg_df.rolling(int(str(mm_num))).mean() #look at previous XX minutes in (number+1)
+mm_num = int(delta_t.strip('min'))
+tltg_df_mm = tltg_df.rolling(int(str(mm_num-1))).mean() #look at previous XX minutes in (number+1)
+#tltg_df_mm = tltg_df.rolling(5).mean() 
 tltg_df_mm = tltg_df_mm['Count'].fillna(0)
 tltg_df_mm = tltg_df_mm.round(2)
 
@@ -261,22 +282,22 @@ ax.bar(range(len(ic_bin.values)), ic_bin.values, color='red', label = 'IC Lightn
 #ax2 = ax.twinx()
 ax.bar(range(len(cg_bin.values)), cg_bin.values, color='salmon', label = 'CG Lightning Flash Counts')
 
-ax.plot(range(len(tltg_df_mm.values)),tltg_df_mm.values, lw = 3.0, color='black', label='Total Lightning Flash '+str((mm_num-1)*(int(delta_t.strip('min'))))+' min moving mean')  
-ax.plot(range(len(t_roc_tltg.values)),t_roc_tltg.values, lw = 3.0, color='blue', label='Rate of Change of '+str((mm_num-1)*(int(delta_t.strip('min'))))+' min Total Lightning Flash moving mean') 
+ax.plot(range(len(tltg_df_mm.values)),tltg_df_mm.values, lw = 3.0, color='black', label='Total Lightning Flash '+str((int(delta_t.strip('min'))))+' min moving mean')  
+ax.plot(range(len(t_roc_tltg.values)),t_roc_tltg.values, lw = 3.0, color='blue', label='Rate of Change of '+str((int(delta_t.strip('min'))))+' min Total Lightning Flash moving mean') 
 
 
 ax.legend(loc='upper center', ncol=3, prop = {'size': 12})
 
 plt.xticks(range(len(str_time_hhmm)), (str_time_hhmm), rotation='90', size='7', fontweight='bold')
 #plt.ylim(0, tltg_bin.values.max()+75.0)
-plt.ylim(t_roc_tltg.values.min()-15.0, tltg_bin.values.max()+100.0)
+plt.ylim(t_roc_tltg.values.min()-5.0, tltg_bin.values.max()+10.0)
 plt.autoscale(enable=True, axis='x', tight='yes')
 
 
 plt.xlabel('Time (UTC)', size='20', fontweight='bold')
 plt.ylabel(''+str(delta_t)+' binned lightning flash counts', size='20',  fontweight='bold')
 
-
+plt.title(str(event_date)+' Lightning Trends', loc='center', fontsize=50)
 plt.savefig(('C:/Users/Lamont/FWD/Research/lightning/plots/'+str(event_date)+'/charts/'+str(delta_t)+'.jpg'), format = 'jpg', dpi=400, bbox_inches='tight')    
 plt.close()
 print("Created and Saved time series of lightning data")
@@ -313,7 +334,7 @@ print("Exporting "+str(delta_t)+" Binned Incloud Lightning Data to a CSV")
 ic_bin_df.to_csv('C:/Users/Lamont/FWD/Research/lightning/txt/'+str(event_date)+'/'+str(delta_t)+'_ic_lightning.csv', index=False)
 
 print("Exporting "+str(delta_t)+" Bin Times CSV")
-time_binv2.to_csv('C:/Users/Lamont/FWD/Research/lightning/txt/'+str(event_date)+'/time_binv2.csv', index=False)
+time_binv2.to_csv('C:/Users/Lamont/FWD/Research/lightning/txt/'+str(event_date)+'/timebin2min.csv', index=False)
 
 
 print("Exporting Filtered Lightning Data CSV")
